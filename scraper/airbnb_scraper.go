@@ -4,7 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"scraping-airbnb/internal/domain"
+	"scraping-airbnb/models"
 	"strconv"
 	"strings"
 	"sync"
@@ -35,7 +35,7 @@ func NewChromedpScraper(parent context.Context) *ChromedpScraper {
 	}
 }
 
-func (s *ChromedpScraper) Scrape(ctx context.Context, baseURL string) ([]domain.Product, error) {
+func (s *ChromedpScraper) Scrape(ctx context.Context, baseURL string) ([]models.Product, error) {
 
 	// Step 1: extract location links
 	
@@ -260,10 +260,10 @@ func (s *ChromedpScraper) extractCardLinks(url string) []string {
 func (s *ChromedpScraper) extractProductsWorkerPool(
 	cardLinks []string,
 	workerCount int,
-) []domain.Product {
+) []models.Product {
 
 	jobs := make(chan string, len(cardLinks))
-	results := make(chan domain.Product, len(cardLinks))
+	results := make(chan models.Product, len(cardLinks))
 
 	var wg sync.WaitGroup
 
@@ -298,7 +298,7 @@ func (s *ChromedpScraper) extractProductsWorkerPool(
 
 	close(results)
 
-	var products []domain.Product
+	var products []models.Product
 
 	for p := range results {
 		products = append(products, p)
@@ -311,7 +311,7 @@ func (s *ChromedpScraper) extractProductsWorkerPool(
 // PRODUCT EXTRACTION
 //
 
-func (s *ChromedpScraper) extractProduct(url string) (domain.Product, error) {
+func (s *ChromedpScraper) extractProduct(url string) (models.Product, error) {
 
 	// Timeout so it never hangs forever
 	tabCtx, cancel := context.WithTimeout(s.allocatorCtx, 30*time.Second)
@@ -387,10 +387,10 @@ func (s *ChromedpScraper) extractProduct(url string) (domain.Product, error) {
 		title, priceText, location, ratingText, err)
 
 	if err != nil {
-		return domain.Product{}, err
+		return models.Product{}, err
 	}
 
-	return domain.Product{
+	return models.Product{
 		Title:    title,
 		Price:    parsePrice(priceText),
 		Location: location,
