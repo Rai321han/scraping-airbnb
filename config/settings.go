@@ -1,0 +1,111 @@
+package config
+
+import "time"
+
+// BrowserConfig controls headless Chrome flags.
+type BrowserConfig struct {
+	Headless   bool
+	DisableGPU bool
+	NoSandbox  bool
+	DisableShm bool
+	UserAgent  string
+}
+
+// TimingConfig controls all wait/sleep durations throughout the scraper.
+type TimingConfig struct {
+	// How long to wait after initial page navigation before interacting
+	PageLoadWait time.Duration
+	// Delay between each scroll step (keeps scroll synchronous)
+	ScrollStepDelay time.Duration
+	// Extra wait after reaching the bottom so lazy content can render
+	ScrollBottomWait time.Duration
+	// Wait after scrolling back to top before extracting data
+	AfterScrollWait time.Duration
+	// How long to wait on a product detail page before extracting
+	ProductPageWait time.Duration
+	// Hard timeout for a single product page extraction
+	ProductTimeout time.Duration
+}
+
+// ConcurrencyConfig controls goroutine and worker pool limits.
+type ConcurrencyConfig struct {
+	// Max concurrent browser tabs when scraping location pages
+	LocationWorkers int
+	// Worker pool size when extracting individual product pages
+	ProductWorkers int
+}
+
+// ScraperConfig controls extraction limits.
+type ScraperConfig struct {
+	// Cards to collect from page 1 of a location search
+	CardsPage1 int
+	// Cards to collect from page 2 (if pagination exists)
+	CardsPage2 int
+	// Pixels to advance per scroll step
+	ScrollStep int
+}
+
+// Config is the root configuration passed into the scraper.
+type Config struct {
+	Browser     BrowserConfig
+	Timing      TimingConfig
+	Concurrency ConcurrencyConfig
+	Scraper     ScraperConfig
+}
+
+// Default returns a conservative production-ready configuration.
+func Default() *Config {
+	return &Config{
+		Browser: BrowserConfig{
+			Headless:   true,
+			DisableGPU: true,
+			NoSandbox:  true,
+			DisableShm: true,
+			UserAgent:  "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+		},
+		Timing: TimingConfig{
+			PageLoadWait:     3 * time.Second,
+			ScrollStepDelay:  300 * time.Millisecond,
+			ScrollBottomWait: 3 * time.Second,
+			AfterScrollWait:  2 * time.Second,
+			ProductPageWait:  4 * time.Second,
+			ProductTimeout:   30 * time.Second,
+		},
+		Concurrency: ConcurrencyConfig{
+			LocationWorkers: 3,
+			ProductWorkers:  5,
+		},
+		Scraper: ScraperConfig{
+			CardsPage1: 5,
+			CardsPage2: 5,
+			ScrollStep: 400,
+		},
+	}
+}
+
+// Dev returns a faster config suited for local development and testing.
+func Dev() *Config {
+	cfg := Default()
+	cfg.Timing.ScrollStepDelay = 100 * time.Millisecond
+	cfg.Timing.ScrollBottomWait = 1 * time.Second
+	cfg.Timing.PageLoadWait = 2 * time.Second
+	cfg.Timing.ProductPageWait = 3 * time.Second
+	cfg.Concurrency.LocationWorkers = 1
+	cfg.Concurrency.ProductWorkers = 2
+	return cfg
+}
+
+
+// DefaultUserAgents returns a pool of realistic desktop browser user agents.
+func DefaultUserAgents() []string {
+	return []string{
+		"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+		"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/119.0.0.0 Safari/537.36",
+		"Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+		"Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.1 Safari/605.1.15",
+		"Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:121.0) Gecko/20100101 Firefox/121.0",
+		"Mozilla/5.0 (Macintosh; Intel Mac OS X 10.15; rv:121.0) Gecko/20100101 Firefox/121.0",
+		"Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+		"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36 Edg/120.0.0.0",
+	}
+}

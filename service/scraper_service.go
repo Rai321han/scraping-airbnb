@@ -23,7 +23,7 @@ func NewScraperService(
 	}
 }
 
-func (s *ScraperService) Run (ctx context.Context, url string) ([]models.Product, error) {
+func (s *ScraperService) Run (ctx context.Context, url string) ([]models.Property, error) {
 	products, err := s.scraper.Scrape(ctx, url)
 
 	if err != nil {

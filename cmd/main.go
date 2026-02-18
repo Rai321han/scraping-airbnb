@@ -4,14 +4,13 @@ import (
 	"context"
 	"fmt"
 	"scraping-airbnb/internal/domain"
-	"scraping-airbnb/scraper"
+	"scraping-airbnb/scraper/airbnb"
 	"scraping-airbnb/service"
 )
 
 func main() {
 	ctx := context.Background()
-	chromedpScraper := scraper.NewChromedpScraper(ctx)
-	// CSV
+	chromedpScraper := airbnb.NewChromedpScraper(ctx)
 	repo := domain.NewCSVRepository("products.csv")
 	scraperService := service.NewScraperService(chromedpScraper, repo)
 	products, err := scraperService.Run(ctx, "https://www.airbnb.com/")

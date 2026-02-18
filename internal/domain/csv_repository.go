@@ -18,7 +18,7 @@ func NewCSVRepository(filePath string) *CSVRepository {
 	}
 }
 
-func (r *CSVRepository) Save(ctx context.Context, products []models.Product) error {
+func (r *CSVRepository) Save(ctx context.Context, products []models.Property) error {
 
 	file, err := os.Create(r.filePath)
 	if err != nil {
@@ -36,7 +36,6 @@ func (r *CSVRepository) Save(ctx context.Context, products []models.Product) err
 		"Location",
 		"URL",
 		"Rating",
-		"Details",
 	})
 
 	for _, p := range products {
@@ -46,8 +45,6 @@ func (r *CSVRepository) Save(ctx context.Context, products []models.Product) err
 			strconv.FormatFloat(float64(p.Price), 'f', 2, 32),
 			p.Location,
 			p.URL,
-			strconv.FormatFloat(float64(p.Rating), 'f', 2, 32),
-			p.Details,
 		})
 	}
 

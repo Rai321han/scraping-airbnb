@@ -6,5 +6,5 @@ import (
 )
 
 type Scraper interface {
-	Scrape(ctx context.Context, baseUrl string) ([]models.Product, error)
+	Scrape(ctx context.Context, baseUrl string) ([]models.Property, error)
 }

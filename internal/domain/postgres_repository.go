@@ -14,7 +14,7 @@ func NewPostgresRepository(db *sql.DB) *PostgresRepository {
 	return &PostgresRepository{db: db}
 }
 
-func (r *PostgresRepository) Save(ctx context.Context, products []models.Product) error {
+func (r *PostgresRepository) Save(ctx context.Context, products []models.Property) error {
 
 	query := `
 	INSERT INTO products (title, price, location, url, rating, details)
@@ -31,7 +31,6 @@ func (r *PostgresRepository) Save(ctx context.Context, products []models.Product
 			p.Location,
 			p.URL,
 			p.Rating,
-			p.Details,
 		)
 
 		if err != nil {

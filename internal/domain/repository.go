@@ -6,5 +6,5 @@ import (
 )
 
 type ProductRepository interface {
-	Save(ctx context.Context, products []models.Product) error
+	Save(ctx context.Context, products []models.Property) error
 }
