@@ -39,10 +39,10 @@ func (s *ChromedpScraper) Scrape(ctx context.Context, baseURL string) ([]models.
 	}
 
 	// Step 2: extract all card links concurrently
-	propertyURLs := s.extractAllCardLinksConcurrent(locationLinks[:1])
+	propertyURLs := s.extractAllCardLinksConcurrent(locationLinks)
 	
 	// Step 3: extract products concurrently via worker pool
-	products := s.extractProductsWorkerPool(propertyURLs[:2], 5)
+	products := s.extractProductsWorkerPool(propertyURLs, 5)
 
 	return products, nil
 }
@@ -230,11 +230,14 @@ func (s *ChromedpScraper) extractProperty(url string) (models.Property, error) {
 		return models.Property{}, err
 	}
 
-	return models.Property{
+	property := models.Property{
 		Title:    title,
 		Price:    utils.ParsePrice(priceText),
 		Location: location,
 		URL:      url,
 		Rating:   utils.ParseRating(ratingText),
-	}, nil
+	}
+
+	fmt.Println(property)
+	return property, nil
 }
