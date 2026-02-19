@@ -129,7 +129,7 @@ go mod download
 Create a `.env` file in the project root:
 
 ```bash
-PG_DSN="postgres://dbuser:db_password@localhost:5432/db_name?sslmode=disable"
+PG_DSN="postgres://db_user:db_password@localhost:5432/db_name?sslmode=disable"
 ```
 
 ### 4. Database Setup Using Docker Compose
@@ -166,7 +166,8 @@ go build -o scraper_executable ./cmd
 
 ```bash
 # Connect to the database
-docker compose exec db psql -U db_user -d db_name
+docker exec -it db-postgres psql -U db_user -d db_name
+
 
 # Inside psql:
 \dt                                    # List tables
