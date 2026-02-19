@@ -1,10 +1,13 @@
 package models
 
 type Property struct {
-	Title string
-	Price float32
+	ID       int64
+	Platform string
+	Title    string
+	Price    float32
 	Location string
-	URL string
-	Rating float32
+	URL      string
+	Rating   float32
+	Description  string
 }
 

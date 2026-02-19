@@ -1,0 +1,22 @@
+version: '3.8'
+
+services:
+  db:
+    container_name: airbnb-postgres
+    image: postgres:15
+    restart: unless-stopped
+
+    environment:
+      POSTGRES_USER: airbnb
+      POSTGRES_PASSWORD: airbnb_password
+      POSTGRES_DB: airbnb_db
+
+    ports:
+      - "5432:5432"
+
+    volumes:
+      - db_data:/var/lib/postgresql/data
+      - ./db/init.sql:/docker-entrypoint-initdb.d/init.sql:ro
+
+volumes:
+  db_data:

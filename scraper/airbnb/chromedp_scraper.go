@@ -4,11 +4,14 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"log"
+	"math"
 	"scraping-airbnb/config"
 	"scraping-airbnb/models"
 	"scraping-airbnb/scraper"
 	"scraping-airbnb/utils"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"github.com/chromedp/chromedp"
@@ -23,26 +26,82 @@ type ChromedpScraper struct {
 
 func NewChromedpScraper(parent context.Context) *ChromedpScraper {
 	cfg := config.Default()
+	log.SetFlags(log.LstdFlags)
+	log.Printf("chromedp scraper created")
 	return &ChromedpScraper{
 		allocatorCtx: scraper.NewAllocator(parent, &cfg.Browser),
 		cfg:          cfg,
 	}
 }
 
+// runWithRetry executes chromedp.Run with exponential backoff retries.
+func (s *ChromedpScraper) runWithRetry(ctx context.Context, actions ...chromedp.Action) error {
+	return s.retryWithBackoff(ctx, func() error {
+		return chromedp.Run(ctx, actions...)
+	})
+}
+
+// retryWithBackoff executes fn with exponential backoff.
+func (s *ChromedpScraper) retryWithBackoff(ctx context.Context, fn func() error) error {
+	maxRetries := s.cfg.Retry.MaxRetries
+	initialBackoff := s.cfg.Retry.InitialBackoff
+	maxBackoff := s.cfg.Retry.MaxBackoff
+
+	var lastErr error
+	for attempt := 0; attempt <= maxRetries; attempt++ {
+		if err := fn(); err == nil {
+			return nil
+		} else {
+			lastErr = err
+		}
+
+		if attempt < maxRetries {
+			backoff := time.Duration(float64(initialBackoff) * math.Pow(2, float64(attempt)))
+			if backoff > maxBackoff {
+				backoff = maxBackoff
+			}
+
+			log.Printf("chromedp attempt %d failed: %v; retrying in %v", attempt+1, lastErr, backoff)
+			select {
+			case <-time.After(backoff):
+				// continue
+			case <-ctx.Done():
+				return ctx.Err()
+			}
+		}
+	}
+
+	return fmt.Errorf("chromedp failed after %d attempts: %w", maxRetries+1, lastErr)
+}
+
 
 func (s *ChromedpScraper) Scrape(ctx context.Context, baseURL string) ([]models.Property, error) {
+
+	start := time.Now()
+	log.Printf("scrape: start %s", baseURL)
 
 	// Step 1: extract location links
 	locationLinks, err := s.extractLocationLinks(baseURL)
 	if err != nil {
 		return nil, err
 	}
+	log.Printf("scrape: found %d locations", len(locationLinks))
 
 	// Step 2: extract all card links concurrently
 	propertyURLs := s.extractAllCardLinksConcurrent(locationLinks)
-	
+	log.Printf("scrape: collected %d property URLs", len(propertyURLs))
+
 	// Step 3: extract products concurrently via worker pool
-	products := s.extractProductsWorkerPool(propertyURLs, 5)
+	products := s.extractProductsWorkerPool(propertyURLs, s.cfg.Concurrency.ProductWorkers)
+
+	duration := time.Since(start)
+	failed := len(propertyURLs) - len(products)
+	if failed < 0 {
+		failed = 0
+	}
+
+	log.Printf("scrape: finished — locations=%d urls=%d fetched=%d failed=%d duration=%s",
+		len(locationLinks), len(propertyURLs), len(products), failed, duration)
 
 	return products, nil
 }
@@ -93,18 +152,24 @@ func (s *ChromedpScraper) extractProductsWorkerPool(
 
 	var wg sync.WaitGroup
 
-	// workers
-	for range workerCount {
-		wg.Go(func() {
+	log.Printf("workerpool: starting %d workers for %d jobs", workerCount, len(cardLinks))
+
+	var fetchedCount int32
+	for i := 0; i < workerCount; i++ {
+		wg.Add(1)
+		go func(id int) {
+			defer wg.Done()
 			for url := range jobs {
-
 				product, err := s.extractProperty(url)
-
-				if err == nil {
-					results <- product
+				if err != nil {
+					log.Printf("[property] worker %d: failed %s: %v", id, url, err)
+					continue
 				}
+				n := atomic.AddInt32(&fetchedCount, 1)
+				log.Printf("[property] #%d fetched: %s", n, product.Title)
+				results <- product
 			}
-		})
+		}(i)
 	}
 
 	// send jobs
@@ -115,11 +180,9 @@ func (s *ChromedpScraper) extractProductsWorkerPool(
 	close(jobs)
 
 	wg.Wait()
-
 	close(results)
 
 	var products []models.Property
-
 	for p := range results {
 		products = append(products, p)
 	}
@@ -138,7 +201,7 @@ func (s *ChromedpScraper) extractLocationLinks(url string) ([]LocationLink, erro
 
 	var rawJSON string
 
-	err := chromedp.Run(tab,
+	err := s.runWithRetry(tab,
 		chromedp.Navigate(url),
 		chromedp.WaitVisible(`h2`, chromedp.ByQuery),
 		scraper.ScrollToBottom(&s.cfg.Timing, s.cfg.Scraper.ScrollStep),
@@ -182,7 +245,7 @@ func (s *ChromedpScraper) extractCardLinks(locationURL string) []string {
 func (s *ChromedpScraper) scrapeCardPage(ctx context.Context, url string) []string {
 	var links []string
 
-	err := chromedp.Run(ctx,
+	err := s.runWithRetry(ctx,
 		chromedp.Navigate(url),
 		chromedp.Sleep(s.cfg.Timing.PageLoadWait),
 		scraper.ScrollToBottom(&s.cfg.Timing, s.cfg.Scraper.ScrollStep),
@@ -190,7 +253,7 @@ func (s *ChromedpScraper) scrapeCardPage(ctx context.Context, url string) []stri
 		chromedp.Evaluate(cardLinksJS(s.cfg.Scraper.CardsPage1), &links),
 	)
 	if err != nil {
-		fmt.Printf("[cards] scrapeCardPage error %s: %v\n", url, err)
+		log.Printf("[cards] scrapeCardPage error %s: %v", url, err)
 	}
 
 	return links
@@ -209,35 +272,87 @@ func (s *ChromedpScraper) findNextPageURL(ctx context.Context) string {
 }
 
 func (s *ChromedpScraper) extractProperty(url string) (models.Property, error) {
-	tabCtx, cancel := context.WithTimeout(s.allocatorCtx, 30*time.Second)
-	defer cancel()
 
-	browserCtx, browserCancel := chromedp.NewContext(tabCtx)
-	defer browserCancel()
 
-	var title, priceText, location, ratingText string
+	// Create the browser context FIRST, then wrap it with timeout
+    // so the timeout applies to the tab's operations, not the allocator lifetime
+    browserCtx, browserCancel := chromedp.NewContext(s.allocatorCtx)
+    defer browserCancel()
 
-	err := chromedp.Run(browserCtx,
-		chromedp.Navigate(url),
-		chromedp.Sleep(4*time.Second),
-		chromedp.Evaluate(titleJS, &title),
-		chromedp.Evaluate(priceJS, &priceText),
-		chromedp.Evaluate(locationJS, &location),
-		chromedp.Evaluate(ratingJS, &ratingText),
-	)
+    tabCtx, cancel := context.WithTimeout(browserCtx, s.cfg.Timing.ProductTimeout)
+    defer cancel()
+
+    var title, priceText, location, ratingText, description string
+
+    err := s.runWithRetry(tabCtx,
+        chromedp.Navigate(url),
+        chromedp.WaitVisible(`div[data-plugin-in-point-id="TITLE_DEFAULT"]`, chromedp.ByQuery),
+        chromedp.Evaluate(titleJS, &title),
+        chromedp.Evaluate(priceJS, &priceText),
+        chromedp.Evaluate(ratingJS, &ratingText),
+        chromedp.WaitVisible(`div[data-section-id="LOCATION_DEFAULT"]`, chromedp.ByQuery),
+        chromedp.Evaluate(locationJS, &location),
+        chromedp.Evaluate(`
+            (() => {
+                const btn = document.querySelector('button[aria-label="Show more about this place"]');
+                if (btn) btn.click();
+            })()
+        `, nil),
+        chromedp.Evaluate(descriptionJS, &description),
+    )
+
+
+
+	// tabCtx, cancel := context.WithTimeout(s.allocatorCtx, 30*time.Second)
+	// defer cancel()
+
+	// browserCtx, browserCancel := chromedp.NewContext(tabCtx)
+	// defer browserCancel()
+
+	// var title, priceText, location, ratingText, description string
+
+	// err := s.runWithRetry(browserCtx,
+	// 	chromedp.Navigate(url),
+	// 	chromedp.Sleep(4*time.Second),
+	// 	chromedp.WaitVisible(
+    //         `div[data-plugin-in-point-id="TITLE_DEFAULT"]`,
+    //         chromedp.ByQuery,
+    //     ),
+	// 	chromedp.Evaluate(titleJS, &title),
+	// 	chromedp.Evaluate(priceJS, &priceText),
+	// 	chromedp.Evaluate(ratingJS, &ratingText),
+	// 	chromedp.WaitVisible(
+    //         `div[data-section-id="LOCATION_DEFAULT"]`,
+    //         chromedp.ByQuery,
+    //     ),
+	// 	chromedp.Evaluate(locationJS, &location),
+	// 	// click show more if exists
+	// 	chromedp.Evaluate(`
+	// 		(() => {
+	// 			const btn = document.querySelector(
+	// 				'button[aria-label="Show more about this place"]'
+	// 			);
+	// 			if (btn) btn.click();
+	// 		})()
+	// 	`, nil),
+
+	// 	chromedp.Evaluate(descriptionJS, &description),
+	// 	)
 
 	if err != nil {
 		return models.Property{}, err
 	}
 
 	property := models.Property{
+		Platform: "Airbnb",
 		Title:    title,
 		Price:    utils.ParsePrice(priceText),
 		Location: location,
 		URL:      url,
 		Rating:   utils.ParseRating(ratingText),
+		Description:  description,
 	}
 
-	fmt.Println(property)
+	log.Printf("[property] fetched: %s", property.URL)
 	return property, nil
 }

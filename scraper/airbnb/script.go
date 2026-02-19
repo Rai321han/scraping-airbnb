@@ -59,12 +59,12 @@ JSON.stringify({
 // Each selector tries the most specific/stable target first, then falls back.
 
 // titleJS extracts the listing title from the h1.
-const titleJS = `document.querySelector('h1')?.innerText?.trim() || ""`
+const titleJS = `document.querySelector('.tglziin > h1')?.innerText?.trim() || ""`
 
 // priceJS extracts the nightly price, trying known class names in order.
 const priceJS = `
 (()=>{
-	for (const sel of ['.u1opajno', '.u174bpcy']) {
+	for (const sel of ['.u1opajno', '.u174bpcy', '.uhx2ipv']) {
 		const text = document.querySelector(sel)?.textContent?.trim();
 		if (text) return text;
 	}
@@ -89,10 +89,31 @@ const ratingJS = `
 	for (const sel of [
 		'[data-testid="pdp-reviews-highlight-banner-host-rating"] div[aria-hidden="true"]',
 		'.rmtgcc3',
+		'.r1lcxetl'
 	]) {
 		const text = document.querySelector(sel)?.textContent?.trim();
 		if (text) return text;
 	}
 	return "";
+})()
+`
+
+const descriptionJS = `
+(() => {
+
+    const container = document.querySelector(
+        'div[data-section-id="DESCRIPTION_DEFAULT"]'
+    );
+
+    if (!container) return "";
+
+    // remove "Registration Details" label if exists
+    const clone = container.cloneNode(true);
+
+	const btn = clone.querySelector('button[aria-label="Show more about this place"]');
+	if (btn) btn.remove();
+
+    return clone.innerText.trim();
+
 })()
 `

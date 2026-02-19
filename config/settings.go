@@ -45,12 +45,23 @@ type ScraperConfig struct {
 	ScrollStep int
 }
 
+// RetryConfig controls retry behavior for resilience.
+type RetryConfig struct {
+	// Max number of retry attempts for failed operations
+	MaxRetries int
+	// Initial backoff duration before first retry
+	InitialBackoff time.Duration
+	// Max backoff duration (caps exponential growth)
+	MaxBackoff time.Duration
+}
+
 // Config is the root configuration passed into the scraper.
 type Config struct {
 	Browser     BrowserConfig
 	Timing      TimingConfig
 	Concurrency ConcurrencyConfig
 	Scraper     ScraperConfig
+	Retry       RetryConfig
 }
 
 // Default returns a conservative production-ready configuration.
@@ -67,18 +78,23 @@ func Default() *Config {
 			PageLoadWait:     3 * time.Second,
 			ScrollStepDelay:  300 * time.Millisecond,
 			ScrollBottomWait: 3 * time.Second,
-			AfterScrollWait:  2 * time.Second,
+			AfterScrollWait:  3 * time.Second,
 			ProductPageWait:  4 * time.Second,
-			ProductTimeout:   30 * time.Second,
+			ProductTimeout:   50 * time.Second,
 		},
 		Concurrency: ConcurrencyConfig{
 			LocationWorkers: 3,
-			ProductWorkers:  5,
+			ProductWorkers:  3,
 		},
 		Scraper: ScraperConfig{
 			CardsPage1: 5,
 			CardsPage2: 5,
 			ScrollStep: 400,
+		},
+		Retry: RetryConfig{
+			MaxRetries:     3,
+			InitialBackoff: 2 * time.Second,
+			MaxBackoff:     10 * time.Second,
 		},
 	}
 }

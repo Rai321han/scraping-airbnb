@@ -36,6 +36,7 @@ func (r *CSVRepository) Save(ctx context.Context, products []models.Property) er
 		"Location",
 		"URL",
 		"Rating",
+		"Description",
 	})
 
 	for _, p := range products {
@@ -45,6 +46,9 @@ func (r *CSVRepository) Save(ctx context.Context, products []models.Property) er
 			strconv.FormatFloat(float64(p.Price), 'f', 2, 32),
 			p.Location,
 			p.URL,
+			strconv.FormatFloat(float64(p.Rating), 'f', 2, 32),
+			p.Description,
+			
 		})
 	}
 
