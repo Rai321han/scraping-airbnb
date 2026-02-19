@@ -2,14 +2,14 @@ version: '3.8'
 
 services:
   db:
-    container_name: airbnb-postgres
+    container_name: db-postgres
     image: postgres:15
     restart: unless-stopped
 
     environment:
-      POSTGRES_USER: airbnb
-      POSTGRES_PASSWORD: airbnb_password
-      POSTGRES_DB: airbnb_db
+      POSTGRES_USER: db_user
+      POSTGRES_PASSWORD: db_password
+      POSTGRES_DB: db_name
 
     ports:
       - "5432:5432"
