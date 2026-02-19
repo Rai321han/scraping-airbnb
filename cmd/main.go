@@ -6,13 +6,24 @@ import (
 	"fmt"
 	"log"
 	"os"
+	"path/filepath"
 	"scraping-airbnb/config"
 	"scraping-airbnb/internal/domain"
 	"scraping-airbnb/scraper/airbnb"
 	"scraping-airbnb/service"
 
+	"github.com/joho/godotenv"
 	_ "github.com/lib/pq"
 )
+
+
+func init() {
+	// load .env file from project root
+	envPath := filepath.Join(".", ".env")
+	if err := godotenv.Load(envPath); err != nil {
+		log.Printf("warning: .env file not found at %s; using environment variables", envPath)
+	}
+}
 
 	func main() {
 		ctx := context.Background()
@@ -27,7 +38,7 @@ import (
 		// connect to postgres (defaults match docker-compose)
 		dsn := os.Getenv("PG_DSN")
 		if dsn == "" {
-			dsn = "postgres://airbnb:airbnb_password@localhost:5432/airbnb_db?sslmode=disable"
+			log.Fatalf("db connection string not found")
 		}
 
 		db, err := sql.Open("postgres", dsn)

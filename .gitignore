@@ -1,0 +1,100 @@
+# Go
+*.exe
+*.exe~
+*.dll
+*.so
+*.so.*
+*.dylib
+*.test
+*.out
+*.a
+*.o
+
+# Binaries for programs and plugins
+bin/
+dist/
+
+# Compiled Object files, Static and Dynamic libraries (Shared Objects)
+*.o
+*.a
+*.so
+
+# Go workspace file
+go.work
+
+# Dependency directories
+vendor/ 
+node_modules/
+
+# Environment variables
+.env
+.env.local
+.env.*.local
+
+# IDEs
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+.DS_Store
+*.iml
+*.iws
+*.ipr
+*.sublime-*
+
+# Editor backups and temporary files
+*.bak
+*.tmp
+*.temp
+*~
+.#*
+
+# OS
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+
+# Build artifacts
+/scraper
+/scraper.exe
+build/
+dist/
+
+# Database & Logs
+*.db
+*.sqlite
+*.sqlite3
+*.log
+logs/
+
+# CSV outputs (optional)
+products.csv
+
+# Docker
+.dockerignore
+
+# IDE specific
+.idea/
+.vscode/
+*.sublime-workspace
+
+# Coverage
+*.coverage
+coverage.out
+*.prof
+
+# Air - Live reload for development
+tmp/
+
+# Goland specific
+.idea
+
+# Misc
+*.swp
+*.swo
+tags

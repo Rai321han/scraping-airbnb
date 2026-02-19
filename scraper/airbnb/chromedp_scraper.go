@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"log"
 	"math"
+	"math/rand"
 	"scraping-airbnb/config"
 	"scraping-airbnb/models"
 	"scraping-airbnb/scraper"
@@ -20,6 +21,9 @@ import (
 type ChromedpScraper struct {
 	allocatorCtx context.Context
 	cfg          *config.Config
+	rateLimiter  *time.Ticker
+	requestMutex sync.Mutex
+	userAgents   []string
 }
 
 // NewChromedpScraper returns a ChromedpScraper using the default configuration.
@@ -28,10 +32,33 @@ func NewChromedpScraper(parent context.Context) *ChromedpScraper {
 	cfg := config.Default()
 	log.SetFlags(log.LstdFlags)
 	log.Printf("chromedp scraper created")
-	return &ChromedpScraper{
+
+	// initialize rate limiter
+	var ticker *time.Ticker
+	if cfg.Stealth.MaxRequestsPerSecond > 0 {
+		interval := time.Duration(float64(time.Second) / cfg.Stealth.MaxRequestsPerSecond)
+		ticker = time.NewTicker(interval)
+	}
+
+	s := &ChromedpScraper{
 		allocatorCtx: scraper.NewAllocator(parent, &cfg.Browser),
 		cfg:          cfg,
+		rateLimiter:  ticker,
+		userAgents:   config.DefaultUserAgents(),
 	}
+
+	// log stealth settings
+	if cfg.Stealth.RandomDelayEnabled {
+		log.Printf("stealth: random delays enabled (%v-%v)", cfg.Stealth.RandomDelayMin, cfg.Stealth.RandomDelayMax)
+	}
+	if cfg.Stealth.RandomUserAgentEnabled {
+		log.Printf("stealth: random user agent enabled")
+	}
+	if cfg.Stealth.MaxRequestsPerSecond > 0 {
+		log.Printf("stealth: rate limit enabled (%.1f req/sec)", cfg.Stealth.MaxRequestsPerSecond)
+	}
+
+	return s
 }
 
 // runWithRetry executes chromedp.Run with exponential backoff retries.
@@ -49,7 +76,14 @@ func (s *ChromedpScraper) retryWithBackoff(ctx context.Context, fn func() error)
 
 	var lastErr error
 	for attempt := 0; attempt <= maxRetries; attempt++ {
+		if attempt > 0 {
+			log.Printf("[chromedp-retry] attempt #%d of %d...", attempt+1, maxRetries+1)
+		}
+
 		if err := fn(); err == nil {
+			if attempt > 0 {
+				log.Printf("[chromedp-retry] ✅ attempt #%d succeeded", attempt+1)
+			}
 			return nil
 		} else {
 			lastErr = err
@@ -61,7 +95,7 @@ func (s *ChromedpScraper) retryWithBackoff(ctx context.Context, fn func() error)
 				backoff = maxBackoff
 			}
 
-			log.Printf("chromedp attempt %d failed: %v; retrying in %v", attempt+1, lastErr, backoff)
+			log.Printf("[chromedp-retry] attempt #%d failed: %v; waiting %v before retry", attempt+1, lastErr, backoff)
 			select {
 			case <-time.After(backoff):
 				// continue
@@ -71,9 +105,41 @@ func (s *ChromedpScraper) retryWithBackoff(ctx context.Context, fn func() error)
 		}
 	}
 
+	log.Printf("[chromedp-retry] ❌ all %d attempts failed", maxRetries+1)
 	return fmt.Errorf("chromedp failed after %d attempts: %w", maxRetries+1, lastErr)
 }
 
+// applyRateLimit waits if necessary to respect the configured max requests per second.
+func (s *ChromedpScraper) applyRateLimit() {
+	if s.rateLimiter == nil {
+		return
+	}
+	s.requestMutex.Lock()
+	defer s.requestMutex.Unlock()
+	<-s.rateLimiter.C
+}
+
+// randomDelay applies a random sleep if stealth mode is enabled.
+func (s *ChromedpScraper) randomDelay() {
+	if !s.cfg.Stealth.RandomDelayEnabled {
+		return
+	}
+	minMs := s.cfg.Stealth.RandomDelayMin.Milliseconds()
+	maxMs := s.cfg.Stealth.RandomDelayMax.Milliseconds()
+	if minMs >= maxMs {
+		return
+	}
+	randMs := rand.Int63n(maxMs - minMs) + minMs
+	time.Sleep(time.Duration(randMs) * time.Millisecond)
+}
+
+// getRandomUserAgent returns a random user agent from the pool if enabled.
+func (s *ChromedpScraper) getRandomUserAgent() string {
+	if !s.cfg.Stealth.RandomUserAgentEnabled || len(s.userAgents) == 0 {
+		return s.cfg.Browser.UserAgent
+	}
+	return s.userAgents[rand.Intn(len(s.userAgents))]
+}
 
 func (s *ChromedpScraper) Scrape(ctx context.Context, baseURL string) ([]models.Property, error) {
 
@@ -243,6 +309,9 @@ func (s *ChromedpScraper) extractCardLinks(locationURL string) []string {
 
 // scrapeCardPage navigates to url in the given tab, scrolls, and returns card hrefs.
 func (s *ChromedpScraper) scrapeCardPage(ctx context.Context, url string) []string {
+	s.applyRateLimit()
+	s.randomDelay()
+
 	var links []string
 
 	err := s.runWithRetry(ctx,
@@ -272,7 +341,8 @@ func (s *ChromedpScraper) findNextPageURL(ctx context.Context) string {
 }
 
 func (s *ChromedpScraper) extractProperty(url string) (models.Property, error) {
-
+	s.applyRateLimit()
+	s.randomDelay()
 
 	// Create the browser context FIRST, then wrap it with timeout
     // so the timeout applies to the tab's operations, not the allocator lifetime

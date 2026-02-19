@@ -72,7 +72,14 @@ func (s *ScraperService) retryWithBackoff(ctx context.Context, fn func() error) 
 
 	var lastErr error
 	for attempt := 0; attempt <= maxRetries; attempt++ {
+		if attempt > 0 {
+			log.Printf("[retry] attempt #%d of %d...", attempt+1, maxRetries+1)
+		}
+
 		if err := fn(); err == nil {
+			if attempt > 0 {
+				log.Printf("[retry] ✅ attempt #%d succeeded", attempt+1)
+			}
 			return nil
 		} else {
 			lastErr = err
@@ -85,7 +92,7 @@ func (s *ScraperService) retryWithBackoff(ctx context.Context, fn func() error) 
 				backoff = maxBackoff
 			}
 
-			log.Printf("attempt %d failed: %v; retrying in %v", attempt+1, lastErr, backoff)
+			log.Printf("[retry] attempt #%d failed: %v; waiting %v before retry", attempt+1, lastErr, backoff)
 			select {
 			case <-time.After(backoff):
 				// continue to next retry
@@ -95,6 +102,7 @@ func (s *ScraperService) retryWithBackoff(ctx context.Context, fn func() error) 
 		}
 	}
 
+	log.Printf("[retry] ❌ all %d attempts failed", maxRetries+1)
 	return fmt.Errorf("failed after %d attempts: %w", maxRetries+1, lastErr)
 }
 

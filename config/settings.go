@@ -55,6 +55,20 @@ type RetryConfig struct {
 	MaxBackoff time.Duration
 }
 
+// StealthConfig controls anti-detection and stealth behavior.
+type StealthConfig struct {
+	// Enable random delays between requests
+	RandomDelayEnabled bool
+	// Min random delay (ms)
+	RandomDelayMin time.Duration
+	// Max random delay (ms)
+	RandomDelayMax time.Duration
+	// Enable random user agent selection
+	RandomUserAgentEnabled bool
+	// Max requests per second (rate limiting; 0 = unlimited)
+	MaxRequestsPerSecond float64
+}
+
 // Config is the root configuration passed into the scraper.
 type Config struct {
 	Browser     BrowserConfig
@@ -62,6 +76,7 @@ type Config struct {
 	Concurrency ConcurrencyConfig
 	Scraper     ScraperConfig
 	Retry       RetryConfig
+	Stealth     StealthConfig
 }
 
 // Default returns a conservative production-ready configuration.
@@ -75,12 +90,12 @@ func Default() *Config {
 			UserAgent:  "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
 		},
 		Timing: TimingConfig{
-			PageLoadWait:     3 * time.Second,
-			ScrollStepDelay:  300 * time.Millisecond,
-			ScrollBottomWait: 3 * time.Second,
-			AfterScrollWait:  3 * time.Second,
+			PageLoadWait:     5 * time.Second,
+			ScrollStepDelay:  400 * time.Millisecond,
+			ScrollBottomWait: 4 * time.Second,
+			AfterScrollWait:  4 * time.Second,
 			ProductPageWait:  4 * time.Second,
-			ProductTimeout:   50 * time.Second,
+			ProductTimeout:   70 * time.Second,
 		},
 		Concurrency: ConcurrencyConfig{
 			LocationWorkers: 3,
@@ -96,18 +111,28 @@ func Default() *Config {
 			InitialBackoff: 2 * time.Second,
 			MaxBackoff:     10 * time.Second,
 		},
+		Stealth: StealthConfig{
+			RandomDelayEnabled:     true,
+			RandomDelayMin:         3 * time.Second,
+			RandomDelayMax:         4 * time.Second,
+			RandomUserAgentEnabled: true,
+			MaxRequestsPerSecond:   4.0,
+		},
 	}
 }
 
 // Dev returns a faster config suited for local development and testing.
 func Dev() *Config {
 	cfg := Default()
-	cfg.Timing.ScrollStepDelay = 100 * time.Millisecond
-	cfg.Timing.ScrollBottomWait = 1 * time.Second
-	cfg.Timing.PageLoadWait = 2 * time.Second
+	cfg.Timing.ScrollStepDelay = 400 * time.Millisecond
+	cfg.Timing.ScrollBottomWait = 2 * time.Second
+	cfg.Timing.PageLoadWait = 4 * time.Second
 	cfg.Timing.ProductPageWait = 3 * time.Second
 	cfg.Concurrency.LocationWorkers = 1
 	cfg.Concurrency.ProductWorkers = 2
+	cfg.Stealth.RandomDelayMin = 2 * time.Second
+	cfg.Stealth.RandomDelayMax = 4 * time.Second
+	cfg.Stealth.MaxRequestsPerSecond = 10.0
 	return cfg
 }
 
