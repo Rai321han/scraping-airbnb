@@ -169,7 +169,7 @@ func printInsights(products []models.Property) {
 
 	// print with clean formatting
 	fmt.Println("\n" + strings.Repeat("=", 60))
-	fmt.Println("                    🔍 SCRAPING INSIGHTS REPORT")
+	fmt.Println("                    SCRAPING INSIGHTS REPORT")
 	fmt.Println(strings.Repeat("=", 60))
 
 	fmt.Println("\nSUMMARY STATISTICS")

@@ -300,45 +300,6 @@ func (s *ChromedpScraper) extractProperty(url string) (models.Property, error) {
         `, nil),
         chromedp.Evaluate(descriptionJS, &description),
     )
-
-
-
-	// tabCtx, cancel := context.WithTimeout(s.allocatorCtx, 30*time.Second)
-	// defer cancel()
-
-	// browserCtx, browserCancel := chromedp.NewContext(tabCtx)
-	// defer browserCancel()
-
-	// var title, priceText, location, ratingText, description string
-
-	// err := s.runWithRetry(browserCtx,
-	// 	chromedp.Navigate(url),
-	// 	chromedp.Sleep(4*time.Second),
-	// 	chromedp.WaitVisible(
-    //         `div[data-plugin-in-point-id="TITLE_DEFAULT"]`,
-    //         chromedp.ByQuery,
-    //     ),
-	// 	chromedp.Evaluate(titleJS, &title),
-	// 	chromedp.Evaluate(priceJS, &priceText),
-	// 	chromedp.Evaluate(ratingJS, &ratingText),
-	// 	chromedp.WaitVisible(
-    //         `div[data-section-id="LOCATION_DEFAULT"]`,
-    //         chromedp.ByQuery,
-    //     ),
-	// 	chromedp.Evaluate(locationJS, &location),
-	// 	// click show more if exists
-	// 	chromedp.Evaluate(`
-	// 		(() => {
-	// 			const btn = document.querySelector(
-	// 				'button[aria-label="Show more about this place"]'
-	// 			);
-	// 			if (btn) btn.click();
-	// 		})()
-	// 	`, nil),
-
-	// 	chromedp.Evaluate(descriptionJS, &description),
-	// 	)
-
 	if err != nil {
 		return models.Property{}, err
 	}
