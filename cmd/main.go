@@ -5,7 +5,7 @@ import (
 	"log"
 	"os"
 	"path/filepath"
-	"scraping-airbnb/cmd/scraper"
+	application "scraping-airbnb/cmd/scraper"
 	"scraping-airbnb/config"
 
 	"github.com/joho/godotenv"
@@ -28,7 +28,7 @@ func main() {
 	cfg := config.Default()
 
 	// initialize app
-	app := scraper.NewApp(cfg)
+	app := application.NewApp(cfg)
 
 	// get URL from environment or use default
 	url := os.Getenv("SCRAPER_URL")
