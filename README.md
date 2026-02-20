@@ -70,6 +70,8 @@ This project is a production-ready web scraper for Airbnb listings that:
 ```
 scraping-airbnb/
 ├── cmd/
+│   ├── scraper/
+│   │   └── app.go                 # Application code
 │   └── main.go                    # Application entry point
 ├── config/
 │   └── settings.go                # Configuration structs & defaults
