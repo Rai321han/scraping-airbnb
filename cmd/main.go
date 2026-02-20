@@ -2,15 +2,11 @@ package main
 
 import (
 	"context"
-	"database/sql"
-	"fmt"
 	"log"
 	"os"
 	"path/filepath"
+	"scraping-airbnb/cmd/scraper"
 	"scraping-airbnb/config"
-	"scraping-airbnb/internal/domain"
-	"scraping-airbnb/scraper/airbnb"
-	"scraping-airbnb/service"
 
 	"github.com/joho/godotenv"
 	_ "github.com/lib/pq"
@@ -25,41 +21,23 @@ func init() {
 	}
 }
 
-	func main() {
-		ctx := context.Background()
+func main() {
+	ctx := context.Background()
 
-		// load config
-		cfg := config.Default()
-		log.Printf("scraper config: max_retries=%d, initial_backoff=%v, max_backoff=%v",
-			cfg.Retry.MaxRetries, cfg.Retry.InitialBackoff, cfg.Retry.MaxBackoff)
+	// load config
+	cfg := config.Default()
 
-		chromedpScraper := airbnb.NewChromedpScraper(ctx)
+	// initialize app
+	app := scraper.NewApp(cfg)
 
-		// connect to postgres (defaults match docker-compose)
-		dsn := os.Getenv("PG_DSN")
-		if dsn == "" {
-			log.Fatalf("db connection string not found")
-		}
-
-		db, err := sql.Open("postgres", dsn)
-		if err != nil {
-			log.Fatalf("failed to create db connection: %v", err)
-		}
-		defer db.Close()
-
-		if err := db.PingContext(ctx); err != nil {
-			log.Fatalf("failed to ping db: %v", err)
-		}
-
-		log.Println("db connection successful")
-
-		repo := domain.NewPostgresRepository(db)
-		scraperService := service.NewScraperService(chromedpScraper, repo, cfg)
-		products, err := scraperService.Run(ctx, "https://www.airbnb.com/")
-
-		if err != nil {
-			log.Fatalf("scraping failed: %v", err)
-		}
-
-		fmt.Printf("✓ Scraping completed successfully: %d properties saved\n", len(products))
+	// get URL from environment or use default
+	url := os.Getenv("SCRAPER_URL")
+	if url == "" {
+		log.Fatal("SCRAPER_URL environment variable not set")
 	}
+
+	// run the scraper
+	if err := app.Run(ctx, url); err != nil {
+		log.Fatalf("application failed: %v", err)
+	}
+}
