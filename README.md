@@ -176,7 +176,6 @@ docker exec -it db-postgres psql -U db_user -d db_name
 \dt                                    # List tables
 SELECT * FROM properties LIMIT 10;      # View data
 SELECT COUNT(*) FROM properties;        # Count rows
-SELECT * FROM properties LIMIT 10;    # View via view
 ```
 
 
