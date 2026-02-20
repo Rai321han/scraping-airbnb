@@ -5,6 +5,6 @@ import (
 	"scraping-airbnb/models"
 )
 
-type ProductRepository interface {
-	Save(ctx context.Context, products []models.Property) error
+type PropertyRepository interface {
+	Save(ctx context.Context, property []models.Property) error
 }

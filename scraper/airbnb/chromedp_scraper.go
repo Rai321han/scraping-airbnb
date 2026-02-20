@@ -151,25 +151,26 @@ func (s *ChromedpScraper) Scrape(ctx context.Context, baseURL string) ([]models.
 	if err != nil {
 		return nil, err
 	}
-	log.Printf("scrape: found %d locations", len(locationLinks))
+	log.Printf("scrape: found %d location urls", len(locationLinks))
+	log.Printf("scrape: scraping %d location urls to get properties...", len(locationLinks))
 
 	// Step 2: extract all card links concurrently
 	propertyURLs := s.extractAllCardLinksConcurrent(locationLinks)
 	log.Printf("scrape: collected %d property URLs", len(propertyURLs))
 
 	// Step 3: extract products concurrently via worker pool
-	products := s.extractProductsWorkerPool(propertyURLs, s.cfg.Concurrency.ProductWorkers)
+	property := s.extractPropertiesWorkerPool(propertyURLs, s.cfg.Concurrency.ProductWorkers)
 
 	duration := time.Since(start)
-	failed := len(propertyURLs) - len(products)
+	failed := len(propertyURLs) - len(property)
 	if failed < 0 {
 		failed = 0
 	}
 
 	log.Printf("scrape: finished — locations=%d urls=%d fetched=%d failed=%d duration=%s",
-		len(locationLinks), len(propertyURLs), len(products), failed, duration)
+		len(locationLinks), len(propertyURLs), len(property), failed, duration)
 
-	return products, nil
+	return property, nil
 }
 
 // CARD LINKS CONCURRENT
@@ -207,8 +208,8 @@ func (s *ChromedpScraper) extractAllCardLinksConcurrent(locations []LocationLink
 }
 
 
-// WORKER POOL PRODUCT EXTRACTION
-func (s *ChromedpScraper) extractProductsWorkerPool(
+// WORKER POOL PROPERTY EXTRACTION
+func (s *ChromedpScraper) extractPropertiesWorkerPool(
 	cardLinks []string,
 	workerCount int,
 ) []models.Property {
@@ -226,14 +227,14 @@ func (s *ChromedpScraper) extractProductsWorkerPool(
 		go func(id int) {
 			defer wg.Done()
 			for url := range jobs {
-				product, err := s.extractProperty(url)
+				property, err := s.extractProperty(url)
 				if err != nil {
 					log.Printf("[property] worker %d: failed %s: %v", id, url, err)
 					continue
 				}
 				n := atomic.AddInt32(&fetchedCount, 1)
-				log.Printf("[property] #%d fetched: %s", n, product.Title)
-				results <- product
+				log.Printf("[property] #%d fetched: %s", n, property.Title)
+				results <- property
 			}
 		}(i)
 	}
@@ -248,12 +249,12 @@ func (s *ChromedpScraper) extractProductsWorkerPool(
 	wg.Wait()
 	close(results)
 
-	var products []models.Property
+	var properties []models.Property
 	for p := range results {
-		products = append(products, p)
+		properties = append(properties, p)
 	}
 
-	return products
+	return properties
 }
 
 
@@ -352,13 +353,16 @@ func (s *ChromedpScraper) extractProperty(url string) (models.Property, error) {
     tabCtx, cancel := context.WithTimeout(browserCtx, s.cfg.Timing.ProductTimeout)
     defer cancel()
 
-    var title, priceText, location, ratingText, description string
+    var title, priceText, location, ratingText, description, daysText string
+
 
     err := s.runWithRetry(tabCtx,
         chromedp.Navigate(url),
         chromedp.WaitVisible(`div[data-plugin-in-point-id="TITLE_DEFAULT"]`, chromedp.ByQuery),
         chromedp.Evaluate(titleJS, &title),
+		chromedp.WaitVisible(`div[data-testid="book-it-default"]`, chromedp.ByQuery),
         chromedp.Evaluate(priceJS, &priceText),
+		chromedp.Evaluate(nightsJS, &daysText),
         chromedp.Evaluate(ratingJS, &ratingText),
         chromedp.WaitVisible(`div[data-section-id="LOCATION_DEFAULT"]`, chromedp.ByQuery),
         chromedp.Evaluate(locationJS, &location),
@@ -374,10 +378,22 @@ func (s *ChromedpScraper) extractProperty(url string) (models.Property, error) {
 		return models.Property{}, err
 	}
 
+	// if daysText is "", default to 1 night
+	// if daytext is "for X nights", extract X and use it calculate per night price
+	nights := 1
+	if daysText != "" {
+		nights = utils.ParseNights(daysText)
+	}
+
+	price := utils.ParsePrice(priceText)
+	if nights > 1 && price > 0 {
+		price = price / float32(nights)
+	}
+
 	property := models.Property{
 		Platform: "Airbnb",
 		Title:    title,
-		Price:    utils.ParsePrice(priceText),
+		Price:    price,
 		Location: location,
 		URL:      url,
 		Rating:   utils.ParseRating(ratingText),
@@ -387,3 +403,5 @@ func (s *ChromedpScraper) extractProperty(url string) (models.Property, error) {
 	log.Printf("[property] fetched: %s", property.URL)
 	return property, nil
 }
+
+

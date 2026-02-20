@@ -72,6 +72,18 @@ const priceJS = `
 })()
 `
 
+// for how many nights text scrape
+
+const nightsJS = `(()=>{
+	for (const sel of ['.q5ltwoj', '.q1tsro90 > span', '.qesosmo']) {
+		const text = document.querySelector(sel)?.textContent?.trim();
+		if (text) return text;
+	}
+	return "";
+})()
+`
+
+
 // locationJS extracts the listing location/neighbourhood.
 const locationJS = `
 (()=>{

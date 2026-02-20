@@ -113,8 +113,8 @@ func Default() *Config {
 		},
 		Stealth: StealthConfig{
 			RandomDelayEnabled:     true,
-			RandomDelayMin:         3 * time.Second,
-			RandomDelayMax:         4 * time.Second,
+			RandomDelayMin:         4 * time.Second,
+			RandomDelayMax:         6 * time.Second,
 			RandomUserAgentEnabled: true,
 			MaxRequestsPerSecond:   4.0,
 		},

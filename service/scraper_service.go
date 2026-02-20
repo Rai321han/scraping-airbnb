@@ -16,13 +16,13 @@ import (
 
 type ScraperService struct {
 	scraper domain.Scraper
-	repo    domain.ProductRepository
+	repo    domain.PropertyRepository
 	cfg     *config.Config
 }
 
 func NewScraperService(
 	s domain.Scraper,
-	r domain.ProductRepository,
+	r domain.PropertyRepository,
 	cfg *config.Config,
 ) *ScraperService {
 
@@ -34,12 +34,12 @@ func NewScraperService(
 }
 
 func (s *ScraperService) Run (ctx context.Context, url string) ([]models.Property, error) {
-	var products []models.Property
+	var property []models.Property
 
 	// Scrape with retries
 	err := s.retryWithBackoff(ctx, func() error {
 		var scrapeErr error
-		products, scrapeErr = s.scraper.Scrape(ctx, url)
+		property, scrapeErr = s.scraper.Scrape(ctx, url)
 		return scrapeErr
 	})
 
@@ -50,7 +50,7 @@ func (s *ScraperService) Run (ctx context.Context, url string) ([]models.Propert
 
 	// Save with retries
 	err = s.retryWithBackoff(ctx, func() error {
-		return s.repo.Save(ctx, products)
+		return s.repo.Save(ctx, property)
 	})
 
 	if err != nil {
@@ -59,9 +59,9 @@ func (s *ScraperService) Run (ctx context.Context, url string) ([]models.Propert
 	}
 
 	// After successful save, print scraping insights
-	printInsights(products)
+	printInsights(property)
 
-	return products, nil
+	return property, nil
 }
 
 // retryWithBackoff executes fn with exponential backoff retries.
@@ -121,23 +121,23 @@ func parseCity(location string) string {
 	return ""
 }
 
-func printInsights(products []models.Property) {
-	total := len(products)
+func printInsights(property []models.Property) {
+	total := len(property)
 	if total == 0 {
 		fmt.Println("No listings scraped.")
 		return
 	}
 
 	var sumPrice float64
-	minPrice := float64(products[0].Price)
-	maxPrice := float64(products[0].Price)
+	minPrice := float64(property[0].Price)
+	maxPrice := float64(property[0].Price)
 	var mostExpensive models.Property
-	mostExpensive = products[0]
+	mostExpensive = property[0]
 
 	listingsPerLocation := make(map[string]int)
 	platformCounts := make(map[string]int)
 
-	for _, p := range products {
+	for _, p := range property {
 		price := float64(p.Price)
 		sumPrice += price
 		if price < minPrice {
@@ -171,9 +171,9 @@ func printInsights(products []models.Property) {
 	sort.Slice(locs, func(i,j int) bool { return locs[i].C > locs[j].C })
 
 	// top 5 highest rated
-	productsByRating := make([]models.Property, len(products))
-	copy(productsByRating, products)
-	sort.Slice(productsByRating, func(i,j int) bool { return productsByRating[i].Rating > productsByRating[j].Rating })
+	propertyByRating := make([]models.Property, len(property))
+	copy(propertyByRating, property)
+	sort.Slice(propertyByRating, func(i,j int) bool { return propertyByRating[i].Rating > propertyByRating[j].Rating })
 
 	// print with clean formatting
 	fmt.Println("\n" + strings.Repeat("=", 60))
@@ -203,11 +203,11 @@ func printInsights(products []models.Property) {
 	fmt.Println("\nTOP 5 HIGHEST RATED PROPERTIES")
 	fmt.Println(strings.Repeat("-", 60))
 	limit := 5
-	if len(productsByRating) < limit {
-		limit = len(productsByRating)
+	if len(propertyByRating) < limit {
+		limit = len(propertyByRating)
 	}
 	for i := 0; i < limit; i++ {
-		p := productsByRating[i]
+		p := propertyByRating[i]
 		fmt.Printf("  %d. %s\n", i+1, p.Title)
 		fmt.Printf("     Rating: %.2f ⭐\n", p.Rating)
 	}

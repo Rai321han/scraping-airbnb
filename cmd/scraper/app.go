@@ -46,12 +46,14 @@ func (a *App) Run(ctx context.Context, url string) error {
 
 	repo := domain.NewPostgresRepository(db)
 	scraperService := service.NewScraperService(chromedpScraper, repo, a.cfg)
-	products, err := scraperService.Run(ctx, url)
+	properties, err := scraperService.Run(ctx, url)
 
 	if err != nil {
 		return fmt.Errorf("scraping failed: %w", err)
 	}
 
-	fmt.Printf("✓ Scraping completed successfully: %d properties saved\n", len(products))
+	fmt.Printf("✓ Scraping completed successfully: %d properties saved\n", len(properties))
+
+	fmt.Println(properties)
 	return nil
 }

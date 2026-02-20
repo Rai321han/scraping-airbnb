@@ -2,6 +2,7 @@ package utils
 
 import (
 	"context"
+	"fmt"
 	"strconv"
 	"strings"
 
@@ -31,4 +32,13 @@ func ParseRating(rating string) float32 {
 	v, _ := strconv.ParseFloat(rating, 32)
 
 	return float32(v)
+}
+
+func ParseNights(daysText string) int {
+	// examples:
+	// "for 3 nights"
+	// "for 1 night"
+	var nights int
+	fmt.Sscanf(daysText, "for %d night", &nights)
+	return nights
 }
