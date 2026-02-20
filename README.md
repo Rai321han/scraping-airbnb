@@ -130,6 +130,7 @@ Create a `.env` file in the project root:
 
 ```bash
 PG_DSN="postgres://db_user:db_password@localhost:5432/db_name?sslmode=disable"
+SCRAPER_URL="https://airbnb.com/"
 ```
 
 ### 4. Database Setup Using Docker Compose
