@@ -1,6 +1,7 @@
 #!/bin/bash
 set -e  # Exit on any error
 
+
 # -----------------------------
 # Colors for output
 # -----------------------------
