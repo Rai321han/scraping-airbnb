@@ -113,6 +113,21 @@ scraping-airbnb/
 
 ## Installation
 
+### Using bash script
+
+### 1. Run by executing bash script
+
+#### make executable
+```sh
+chmod +x install_and_run.sh
+```
+
+#### run
+```sh
+./install_and_run.sh
+```
+or
+
 ### 1. Clone the Repository
 
 ```bash
@@ -142,7 +157,7 @@ docker-compose up -d
 ```
 
 This creates a PostgreSQL container with:
-- User: `dbuser`
+- User: `db_user`
 - Password: `db_password`
 - Database: `db_name`
 - Port: `5432`

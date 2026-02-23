@@ -7,7 +7,7 @@ import "fmt"
 // locationLinksJS collects all location card hrefs from the Airbnb homepage.
 const locationLinksJS = `
 JSON.stringify(
-	Array.from(document.querySelectorAll('h2.skp76t2 > a'))
+	Array.from(document.querySelectorAll('.c1ol07tf a'))
 		.map(a => ({ url: a.href }))
 )
 `
