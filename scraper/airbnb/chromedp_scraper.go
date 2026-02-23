@@ -36,7 +36,7 @@ func NewChromedpScraper(parent context.Context) *ChromedpScraper {
 	// initialize rate limiter
 	var ticker *time.Ticker
 	if cfg.Stealth.MaxRequestsPerSecond > 0 {
-		interval := time.Duration(float64(time.Second) / cfg.Stealth.MaxRequestsPerSecond)
+		interval := time.Duration(float64(time.Second) / float64(cfg.Stealth.MaxRequestsPerSecond))
 		ticker = time.NewTicker(interval)
 	}
 
@@ -55,7 +55,7 @@ func NewChromedpScraper(parent context.Context) *ChromedpScraper {
 		log.Printf("stealth: random user agent enabled")
 	}
 	if cfg.Stealth.MaxRequestsPerSecond > 0 {
-		log.Printf("stealth: rate limit enabled (%.1f req/sec)", cfg.Stealth.MaxRequestsPerSecond)
+		log.Printf("stealth: rate limit enabled (%.d req/sec)", cfg.Stealth.MaxRequestsPerSecond)
 	}
 
 	return s

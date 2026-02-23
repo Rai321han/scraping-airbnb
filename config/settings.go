@@ -66,7 +66,7 @@ type StealthConfig struct {
 	// Enable random user agent selection
 	RandomUserAgentEnabled bool
 	// Max requests per second (rate limiting; 0 = unlimited)
-	MaxRequestsPerSecond float64
+	MaxRequestsPerSecond int64
 }
 
 // Config is the root configuration passed into the scraper.
@@ -116,7 +116,7 @@ func Default() *Config {
 			RandomDelayMin:         4 * time.Second,
 			RandomDelayMax:         6 * time.Second,
 			RandomUserAgentEnabled: true,
-			MaxRequestsPerSecond:   4.0,
+			MaxRequestsPerSecond:   4,
 		},
 	}
 }
@@ -132,7 +132,7 @@ func Dev() *Config {
 	cfg.Concurrency.ProductWorkers = 2
 	cfg.Stealth.RandomDelayMin = 2 * time.Second
 	cfg.Stealth.RandomDelayMax = 4 * time.Second
-	cfg.Stealth.MaxRequestsPerSecond = 10.0
+	cfg.Stealth.MaxRequestsPerSecond = 10
 	return cfg
 }
 
